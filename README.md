@@ -1,6 +1,3 @@
-# supportbot-lite
-A retrieval-augmented chatbot that converts FAQ CSV data into searchable embeddings using SentenceTransformers + pgvector, built with FastAPI &amp; React.
-
 # SupportBot Lite 🤖
 
 SupportBot Lite is a retrieval-augmented chatbot that transforms CSV-based FAQ data into searchable embeddings for natural-language question answering. It uses **SentenceTransformers** for embedding generation, **pgvector** in PostgreSQL for vector similarity search, and a **FastAPI** backend with a **React** frontend for an interactive chat experience.
