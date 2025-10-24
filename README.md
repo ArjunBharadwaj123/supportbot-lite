@@ -22,3 +22,43 @@ SupportBot Lite is a retrieval-augmented chatbot that transforms CSV-based FAQ d
 ---
 
 ## 📂 Project Structure
+supportbot-lite/  
+├── backend/  
+│   ├── app/  
+│   │   ├── main.py  
+│   │   ├── models.py  
+│   │   ├── routes/  
+│   │   └── utils/  
+│   └── requirements.txt  
+├── frontend/  
+│   ├── src/  
+│   └── package.json  
+├── docker-compose.yml  
+└── README.md  
+
+---
+
+## ⚙️ Setup & Run Locally
+
+### 1. Clone the repo
+\`bash
+git clone https://github.com/<your-username>/supportbot-lite.git
+cd supportbot-lite
+\`
+
+### 2. Start services with Docker
+\`bash
+docker-compose up --build
+\`
+
+The backend will start at `http://localhost:8000`  
+The frontend will start at `http://localhost:3000`
+
+---
+
+## 🧠 How It Works
+1. CSV FAQ data is uploaded via the FastAPI endpoint.  
+2. Each question + answer pair is embedded using SentenceTransformers (MiniLM).  
+3. Embeddings are stored in PostgreSQL using **pgvector**.  
+4. User queries are embedded and matched by vector similarity.  
+5. If similarity falls below a threshold, a fallback LLM generates a paraphrased answer.
