@@ -1,0 +1,49 @@
+version: "3.9"
+
+services:
+  # 1️⃣ PostgreSQL database
+  db:
+    image: ankane/pgvector:latest     # prebuilt image with pgvector installed
+    container_name: supportbot_db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: supportbot
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  # 2️⃣ FastAPI backend
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: supportbot_backend
+    restart: always
+    depends_on:
+      - db
+    env_file: .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
+    extra_hosts:            # ✅ allow backend to reach host machine (macOS/Linux)
+      - "host.docker.internal:host-gateway"
+
+  # 3️⃣ (Optional) React frontend
+  frontend:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: supportbot_frontend
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+
+volumes:
+  pgdata:
