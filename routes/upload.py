@@ -39,22 +39,33 @@ async def upload_faq_csv(file: UploadFile = File(...), db: Session = Depends(get
     Upload CSV to S3, generate embeddings, and store FAQs in RDS.
     """
 
+    print("=== S3 UPLOAD START ===")
+    print("Filename:", file.filename)
+
     # --- Validate file type ---
     if not file.filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="Please upload a valid CSV file.")
 
-    # --- Upload to S3 ---
-    try:
-        s3.upload_fileobj(
-            file.file,
-            BUCKET_NAME,
-            file.filename
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"S3 upload failed: {e}")
-
-    # IMPORTANT: Reset file pointer after upload
+    print("File pointer before upload:", file.file.tell())
     file.file.seek(0)
+
+    # Read entire file into memory once
+    contents = await file.read()
+
+    # Upload to S3
+    s3.put_object(
+        Bucket=BUCKET_NAME,
+        Key=file.filename,
+        Body=contents
+    )
+
+    # Now use same contents for pandas
+    import io
+    df = pd.read_csv(io.BytesIO(contents))
+
+    print("File pointer after upload:", file.file.tell())
+    print("=== S3 UPLOAD COMPLETE ===")
+
 
     # --- Clear existing FAQs ---
     clear_db(db)
