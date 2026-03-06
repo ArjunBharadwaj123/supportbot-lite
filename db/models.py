@@ -4,6 +4,8 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from pgvector.sqlalchemy import Vector
 from .session import Base
+from sqlalchemy import BigInteger
+
 
 # 1. FAQEntry model: stores each FAQ question, answer, and its embedding
 class FAQEntry(Base):
@@ -30,3 +32,12 @@ class ChatLog(Base):
 
     # Link back to FAQEntry
     matched_faq = relationship("FAQEntry", back_populates="chat_logs")
+
+class UploadedFile(Base):
+    __tablename__ = "uploaded_files"
+
+    id = Column(Integer, primary_key=True, index=True)
+    filename = Column(String, nullable=False)
+    s3_key = Column(String, nullable=False)
+    file_size = Column(BigInteger, nullable=False)
+    upload_timestamp = Column(DateTime(timezone=True), server_default=func.now())

@@ -5,9 +5,11 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 import pandas as pd
 import boto3
+import uuid
+import io
 
 from db.session import SessionLocal
-from db.models import FAQEntry
+from db.models import FAQEntry, UploadedFile
 from services.embed import get_embeddings
 
 
@@ -36,53 +38,47 @@ def clear_db(db: Session):
 @router.post("/faq")
 async def upload_faq_csv(file: UploadFile = File(...), db: Session = Depends(get_db)):
     """
-    Upload CSV to S3, generate embeddings, and store FAQs in RDS.
+    Upload CSV to S3, generate embeddings, store metadata + FAQs in RDS.
     """
 
-    print("=== S3 UPLOAD START ===")
-    print("Filename:", file.filename)
-
-    # --- Validate file type ---
     if not file.filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="Please upload a valid CSV file.")
 
-    print("File pointer before upload:", file.file.tell())
-    file.file.seek(0)
-
-    # Read entire file into memory once
+    # Read file into memory once
     contents = await file.read()
 
+    if not contents:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+
+    # Generate unique S3 key
+    unique_key = f"{uuid.uuid4()}-{file.filename}"
+
     # Upload to S3
-    s3.put_object(
-        Bucket=BUCKET_NAME,
-        Key=file.filename,
-        Body=contents
+    try:
+        s3.put_object(
+            Bucket=BUCKET_NAME,
+            Key=unique_key,
+            Body=contents
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"S3 upload failed: {e}")
+
+    # Store metadata in DB
+    from db.models import UploadedFile
+
+    uploaded_file = UploadedFile(
+        filename=file.filename,
+        s3_key=unique_key,
+        file_size=len(contents)
     )
 
-    # Now use same contents for pandas
-    import io
-    df = pd.read_csv(io.BytesIO(contents))
+    db.add(uploaded_file)
+    db.commit()
 
-    print("File pointer after upload:", file.file.tell())
-    print("=== S3 UPLOAD COMPLETE ===")
-
-
-    # --- Clear existing FAQs ---
-    clear_db(db)
-
-    # --- Read CSV ---
+    # Read CSV from memory
     try:
-        df = pd.read_csv(file.file)
+        df = pd.read_csv(io.BytesIO(contents))
         df.columns = df.columns.str.strip().str.lower()
-
-        rename_map = {}
-        if "questions" in df.columns and "question" not in df.columns:
-            rename_map["questions"] = "question"
-        if "answers" in df.columns and "answer" not in df.columns:
-            rename_map["answers"] = "answer"
-
-        if rename_map:
-            df.rename(columns=rename_map, inplace=True)
 
         if not {"question", "answer"}.issubset(df.columns):
             raise HTTPException(status_code=400, detail="Missing required columns: question, answer")
@@ -90,11 +86,14 @@ async def upload_faq_csv(file: UploadFile = File(...), db: Session = Depends(get
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error reading CSV: {e}")
 
-    # --- Generate embeddings ---
+    # Clear old FAQs
+    clear_db(db)
+
+    # Generate embeddings
     questions = df["question"].fillna("").tolist()
     embeddings = get_embeddings(questions)
 
-    # --- Store in DB ---
+    # Store FAQs
     for i, row in df.iterrows():
         faq = FAQEntry(
             question=row["question"],
@@ -108,5 +107,5 @@ async def upload_faq_csv(file: UploadFile = File(...), db: Session = Depends(get
     return {
         "message": f"Successfully uploaded {len(df)} FAQs.",
         "total": len(df),
-        "s3_file": file.filename
+        "s3_key": unique_key
     }
