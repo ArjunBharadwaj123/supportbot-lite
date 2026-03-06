@@ -77,11 +77,18 @@ async def upload_faq_csv(file: UploadFile = File(...), db: Session = Depends(get
 
     # Read CSV from memory
     try:
-        df = pd.read_csv(io.BytesIO(contents))
-        df.columns = df.columns.str.strip().str.lower()
+            # 'utf-8-sig' automatically handles the hidden BOM character
+            decoded_contents = contents.decode('utf-8-sig') 
+            df = pd.read_csv(io.StringIO(decoded_contents))
+            
+            df.columns = df.columns.str.strip().str.lower()
 
-        if not {"question", "answer"}.issubset(df.columns):
-            raise HTTPException(status_code=400, detail="Missing required columns: question, answer")
+            if not {"question", "answer"}.issubset(df.columns):
+                # This will now tell you EXACTLY what columns it DID find
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"Missing columns. Found: {list(df.columns)}"
+                )
 
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error reading CSV: {e}")
