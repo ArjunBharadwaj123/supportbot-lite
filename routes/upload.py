@@ -16,7 +16,7 @@ router = APIRouter()
 # Create S3 client (uses IAM role automatically on EC2)
 s3 = boto3.client("s3")
 
-BUCKET_NAME = "supportbot-documents-1"  # <-- Make sure this matches exactly
+BUCKET_NAME = "supportbot-documents"  # <-- Make sure this matches exactly
 
 
 # Dependency to get DB session
