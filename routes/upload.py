@@ -72,7 +72,6 @@ async def upload_faq_csv(file: UploadFile = File(...), db: Session = Depends(get
 
     # --- Read CSV ---
     try:
-        df = pd.read_csv(file.file)
         df.columns = df.columns.str.strip().str.lower()
 
         rename_map = {}
