@@ -1,27 +1,63 @@
 # db/session.py
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, declarative_base
-# from dotenv import load_dotenv
+import boto3
 import os
 
-# 1. Load environment variables from .env file
-# load_dotenv()
+# ---------------------------------------
+# Get database URL from AWS Parameter Store
+# ---------------------------------------
 
-# 2. Read the DATABASE_URL variable
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:Eleventeen2005@supportbot-db.cyxy2gyok0ao.us-east-1.rds.amazonaws.com:5432/postgres")
+def get_database_url():
+    try:
+        # Attempt to read from AWS Parameter Store
+        ssm = boto3.client("ssm", region_name="us-east-1")
 
-# 3. Create SQLAlchemy engine (connects to PostgreSQL)
-engine = create_engine(DATABASE_URL)
+        response = ssm.get_parameter(
+            Name="/supportbot/database_url",
+            WithDecryption=True
+        )
 
-# 4. Create session factory
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+        print("Loaded DATABASE_URL from AWS Parameter Store")
 
-# 5. Base class for models
+        return response["Parameter"]["Value"]
+
+    except Exception as e:
+        print("Using local DATABASE_URL from environment")
+
+        return os.getenv(
+            "DATABASE_URL",
+            "postgresql://postgres:Eleventeen2005@supportbot-db.cyxy2gyok0ao.us-east-1.rds.amazonaws.com:5432/postgres"
+        )
+
+
+DATABASE_URL = get_database_url()
+
+# ---------------------------------------
+# SQLAlchemy setup
+# ---------------------------------------
+
+engine = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=True
+)
+
+SessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=engine
+)
+
 Base = declarative_base()
 
-# 6. Initialize pgvector extension if not present
+
+# ---------------------------------------
+# Initialize database
+# ---------------------------------------
+
 def init_db():
     with engine.connect() as conn:
         conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
         conn.commit()
+
     Base.metadata.create_all(bind=engine)
