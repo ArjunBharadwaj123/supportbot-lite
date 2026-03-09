@@ -8,7 +8,7 @@ import os
 # load_dotenv()
 
 # 2. Read the DATABASE_URL variable
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+psycopg2://postgres:postgres@db:5432/supportbot")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:Eleventeen2005@supportbot-db.cyxy2gyok0ao.us-east-1.rds.amazonaws.com:5432/postgres")
 
 # 3. Create SQLAlchemy engine (connects to PostgreSQL)
 engine = create_engine(DATABASE_URL)

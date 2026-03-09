@@ -1,20 +1,6 @@
 version: "3.9"
 
 services:
-  # 1️⃣ PostgreSQL database
-  db:
-    image: ankane/pgvector:latest     # prebuilt image with pgvector installed
-    container_name: supportbot_db
-    restart: always
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: supportbot
-    ports:
-      - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-
   # 2️⃣ FastAPI backend
   backend:
     build:
